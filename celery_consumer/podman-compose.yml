@@ -1,0 +1,46 @@
+version: '3'
+
+services:
+  rabbitmq:
+    image: rabbitmq:management
+    container_name: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: user
+      RABBITMQ_DEFAULT_PASS: password
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - rabbitmq-celery-network
+
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: celery-worker
+    environment:
+      - CELERY_BROKER_URL=amqp://user:password@rabbitmq:5672//
+      - WORKER_NAME=${WORKER_NAME}  # Nome dinamico del worker
+      - QUEUE_NAME=${QUEUE_NAME}  # Nome dinamico della coda
+    depends_on:
+      - rabbitmq
+    networks:
+      - rabbitmq-celery-network
+
+  flower:
+    build:
+      context: ./flower
+      dockerfile: Dockerfile
+    container_name: flower
+    environment:
+      - FLOWER_BROKER=amqp://user:password@rabbitmq:5672//
+    ports:
+      - "5555:5555"  # Porta per l'interfaccia web di Flower
+    depends_on:
+      - rabbitmq
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
